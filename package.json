@@ -7,7 +7,18 @@
     "dev": "vite",
     "build": "tsc && vite build",
     "preview": "vite preview",
-    "tauri": "tauri"
+    "tauri": "tauri",
+    "//": "=== Quality Gates ===",
+    "typecheck": "tsgo -p tsconfig.json",
+    "lint": "oxlint .",
+    "lint:fix": "oxlint . --fix",
+    "fmt": "oxfmt .",
+    "fmt:check": "oxfmt --check .",
+    "//2": "=== Bundled Checks ===",
+    "check:fast": "bun run lint && bun run fmt:check",
+    "check": "bun run typecheck && bun run lint && bun run fmt:check",
+    "//3": "=== Convenience ===",
+    "fix": "bun run lint:fix && bun run fmt"
   },
   "dependencies": {
     "react": "^19.1.0",
