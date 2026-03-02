@@ -29,10 +29,102 @@ html,
 
 .toolbar {
   display: flex;
-  gap: 8px;
+  justify-content: space-between;
   padding: 8px;
   background-color: #333333;
   border-bottom: 1px solid #444;
+}
+
+.toolbar-left,
+.toolbar-right {
+  display: flex;
+  gap: 8px;
+}
+
+.active-toggle {
+  background-color: #2b702b !important;
+  color: white;
+  border-color: #3d8f3d !important;
+}
+
+.tabs-bar {
+  display: flex;
+  background-color: #252526;
+  overflow-x: auto;
+  border-bottom: 1px solid #1e1e1e;
+}
+
+.tab {
+  display: flex;
+  align-items: center;
+  padding: 6px 14px;
+  background-color: #2d2d2d;
+  color: #969696;
+  cursor: pointer;
+  border-right: 1px solid #1e1e1e;
+  border-top: 2px solid transparent;
+  min-width: 120px;
+  font-size: 13px;
+  user-select: none;
+}
+
+.tab.active {
+  background-color: #1e1e1e;
+  color: #ffffff;
+  border-top: 2px solid #007acc;
+}
+
+.tab:hover:not(.active) {
+  background-color: #333333;
+}
+
+.tab-title {
+  flex: 1;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  margin-right: 8px;
+}
+
+.tab-close {
+  background: none;
+  border: none;
+  color: inherit;
+  font-size: 16px;
+  cursor: pointer;
+  padding: 0 4px;
+  border-radius: 4px;
+  line-height: 1;
+}
+
+.tab-close:hover {
+  background-color: #444;
+  color: #fff;
+}
+
+.editor-wrapper {
+  flex: 1;
+  width: 100%;
+  background-color: #1e1e1e;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+
+.cm-editor-container {
+  flex: 1;
+  overflow: auto;
+  font-family: "Consolas", "Courier New", monospace;
+  font-size: 14px;
+}
+
+/* Force codemirror to take full height */
+.cm-theme-dark,
+.cm-editor {
+  height: 100% !important;
+}
+.cm-scroller {
+  overflow: auto !important;
 }
 
 .toolbar button {
