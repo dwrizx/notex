@@ -13,6 +13,7 @@
 ### Task 1: Instalasi Tools
 
 **Files:**
+
 - Modify: `package.json`
 - Modify: `bun.lock` (Otomatis terupdate lewat bun)
 
@@ -21,10 +22,11 @@ Run: `bun add -D @typescript/native-preview oxlint oxfmt`
 Expected: Instalasi sukses, `package.json` diupdate.
 
 **Step 2: Install preset/migration opsional (jika dibutuhkan)**
-*(Opsional - Tapi dalam design kita tidak pakai preset ketat, jadi ini bisa diskip)*
+_(Opsional - Tapi dalam design kita tidak pakai preset ketat, jadi ini bisa diskip)_
 Run: `bun add -D @nkzw/oxlint-config`
 
 **Step 3: Commit perubahan**
+
 ```bash
 git add package.json bun.lock
 git commit -m "build(deps): add bun-first frontend tooling base (tsgo, oxlint, oxfmt)"
@@ -35,12 +37,14 @@ git commit -m "build(deps): add bun-first frontend tooling base (tsgo, oxlint, o
 ### Task 2: Setup VS Code TypeScript Native Preview (tsgo)
 
 **Files:**
+
 - Create/Modify: `.vscode/settings.json`
 
 **Step 1: Update/Buat `.vscode/settings.json`**
+
 ```jsonc
 {
-  "typescript.experimental.useTsgo": true
+  "typescript.experimental.useTsgo": true,
 }
 ```
 
@@ -49,6 +53,7 @@ Run: `cat .vscode/settings.json`
 Expected: Output sesuai file baru.
 
 **Step 3: Commit perubahan**
+
 ```bash
 git add .vscode/settings.json
 git commit -m "chore(vscode): enable typescript.experimental.useTsgo"
@@ -59,14 +64,16 @@ git commit -m "chore(vscode): enable typescript.experimental.useTsgo"
 ### Task 3: Inisiasi Oxlint & Oxfmt Configuration
 
 **Files:**
+
 - Create: `.oxfmtrc.jsonc`
 
 **Step 1: Setup minimal Oxfmt config**
 Buat/tulis konfigurasi formatter di root folder:
+
 ```jsonc
 {
   "$schema": "./node_modules/oxfmt/configuration_schema.json",
-  "printWidth": 80
+  "printWidth": 80,
 }
 ```
 
@@ -75,6 +82,7 @@ Run: `bunx oxlint --init`
 Expected: Linter base config tergenerate (jika tidak ada file config).
 
 **Step 3: Commit perubahan**
+
 ```bash
 git add .oxfmtrc.jsonc
 # Tambahkan base oxlint config jika ada (misal .oxlintrc.json)
@@ -87,10 +95,12 @@ git commit -m "chore(tooling): add oxfmt and oxlint configs"
 ### Task 4: Konfigurasi NPM Scripts di package.json
 
 **Files:**
+
 - Modify: `package.json:6-12` (di bagian `scripts`)
 
 **Step 1: Tambahkan scripts kualitas kode**
 Ubah bagian `scripts` di `package.json` sehingga menjadi:
+
 ```json
   "scripts": {
     "dev": "vite",
@@ -116,6 +126,7 @@ Run: `bun run check`
 Expected: PASS tanpa error yang fatal (atau muncul error format/lint dari codebase saat ini yang bisa di fix di Task 5).
 
 **Step 3: Commit perubahan scripts**
+
 ```bash
 git add package.json
 git commit -m "chore: add fast check scripts (lint, fmt, typecheck)"
@@ -126,6 +137,7 @@ git commit -m "chore: add fast check scripts (lint, fmt, typecheck)"
 ### Task 5: Formating awal codebase saat ini
 
 **Files:**
+
 - Modify: Seluruh file dalam project `src/` atau `src-tauri/` yang disupport formatter.
 
 **Step 1: Jalankan auto-fix linter dan formatter ke existing code**
@@ -137,6 +149,7 @@ Run: `bun run check:fast`
 Expected: PASS untuk semua rules.
 
 **Step 3: Commit perubahan final formatting**
+
 ```bash
 git add .
 git commit -m "style: apply initial oxfmt and oxlint fixes"
