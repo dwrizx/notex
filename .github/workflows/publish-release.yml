@@ -99,16 +99,37 @@ jobs:
 
           const cargoPath = "src-tauri/Cargo.toml";
           const cargoToml = fs.readFileSync(cargoPath, "utf8");
-          const updatedCargoToml = cargoToml.replace(
-            /(\[package\][\s\S]*?\nversion = ")([^"]+)(")/,
-            `$1${version}$3`,
-          );
+          const lineEnding = cargoToml.includes("\r\n") ? "\r\n" : "\n";
+          const lines = cargoToml.split(/\r?\n/);
+          let inPackageSection = false;
+          let updated = false;
 
-          if (cargoToml === updatedCargoToml) {
+          const updatedLines = lines.map((line) => {
+            if (/^\s*\[package\]\s*$/.test(line)) {
+              inPackageSection = true;
+              return line;
+            }
+
+            if (inPackageSection && /^\s*\[.*\]\s*$/.test(line)) {
+              inPackageSection = false;
+            }
+
+            if (inPackageSection && /^\s*version\s*=\s*"[^"]+"\s*$/.test(line)) {
+              updated = true;
+              return line.replace(
+                /^(\s*version\s*=\s*")[^"]+(".*)$/,
+                `$1${version}$2`,
+              );
+            }
+
+            return line;
+          });
+
+          if (!updated) {
             throw new Error("Failed to update version in src-tauri/Cargo.toml");
           }
 
-          fs.writeFileSync(cargoPath, updatedCargoToml);
+          fs.writeFileSync(cargoPath, `${updatedLines.join(lineEnding)}${lineEnding}`);
           EOF
 
       - name: Install frontend dependencies
