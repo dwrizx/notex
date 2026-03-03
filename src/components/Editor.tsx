@@ -39,6 +39,45 @@ type CursorPosition = {
   selectionLength: number;
 };
 
+type SearchStatus = {
+  query: string;
+  current: number;
+  total: number;
+};
+
+type VimStatus = {
+  mode: string;
+  commandText: string | null;
+};
+
+type VimModeChange = {
+  mode?: string;
+  subMode?: string;
+};
+
+type VimLikeState = {
+  mode?: string;
+  status?: string;
+  insertMode?: boolean;
+  visualMode?: boolean;
+  visualLine?: boolean;
+  visualBlock?: boolean;
+};
+
+type VimLikeEditor = {
+  state: {
+    vim?: VimLikeState;
+  };
+  on: (
+    event: "vim-mode-change",
+    handler: (event: VimModeChange) => void,
+  ) => void;
+  off?: (
+    event: "vim-mode-change",
+    handler: (event: VimModeChange) => void,
+  ) => void;
+};
+
 interface Props {
   text: string;
   onChange: (val: string) => void;
@@ -49,6 +88,8 @@ interface Props {
   fileName: string;
   command: EditorCommand;
   onCursorChange: (position: CursorPosition) => void;
+  onSearchStatusChange: (status: SearchStatus) => void;
+  onVimStatusChange: (status: VimStatus | null) => void;
 }
 
 export const Editor: React.FC<Props> = ({
@@ -61,26 +102,147 @@ export const Editor: React.FC<Props> = ({
   fileName,
   command,
   onCursorChange,
+  onSearchStatusChange,
+  onVimStatusChange,
 }) => {
   const [vimExtensions, setVimExtensions] =
     useState<Extension[]>(DEFAULT_EXTENSIONS);
   const [languageExtensions, setLanguageExtensions] =
     useState<Extension[]>(DEFAULT_EXTENSIONS);
   const editorViewRef = useRef<EditorView | null>(null);
+  const getVimEditorRef = useRef<
+    ((view: EditorView) => VimLikeEditor | null) | null
+  >(null);
+
+  const updateSearchStatus = (view: EditorView) => {
+    const query = getSearchQuery(view.state);
+    if (!query.search || !query.valid) {
+      onSearchStatusChange({ query: "", current: 0, total: 0 });
+      return;
+    }
+
+    const mainSelection = view.state.selection.main;
+    let total = 0;
+    let current = 0;
+
+    let cursor = query.getCursor(view.state);
+    let match = cursor.next();
+    while (!match.done) {
+      total += 1;
+      if (
+        match.value.from === mainSelection.from &&
+        match.value.to === mainSelection.to &&
+        current === 0
+      ) {
+        current = total;
+      }
+      match = cursor.next();
+    }
+
+    if (total > 0 && current === 0) {
+      let index = 0;
+      let firstAfterCursor = 0;
+
+      cursor = query.getCursor(view.state);
+      match = cursor.next();
+      while (!match.done) {
+        index += 1;
+        if (match.value.from >= mainSelection.head) {
+          firstAfterCursor = index;
+          break;
+        }
+        match = cursor.next();
+      }
+
+      current = firstAfterCursor || 1;
+    }
+
+    onSearchStatusChange({
+      query: query.search,
+      current,
+      total,
+    });
+  };
+
+  const formatVimMode = (
+    mode: string | undefined,
+    subMode: string | undefined,
+    vimState: VimLikeState | undefined,
+  ) => {
+    if (!mode && !vimState) {
+      return "Normal";
+    }
+
+    if (mode === "visual" || vimState?.visualMode) {
+      if (subMode === "linewise" || vimState?.visualLine) {
+        return "Visual Line";
+      }
+      if (subMode === "blockwise" || vimState?.visualBlock) {
+        return "Visual Block";
+      }
+      return "Visual";
+    }
+
+    switch ((mode ?? vimState?.mode ?? "normal").toLowerCase()) {
+      case "insert":
+        return "Insert";
+      case "replace":
+        return "Replace";
+      case "operatorpending":
+        return "Operator Pending";
+      case "normal":
+        return "Normal";
+      default:
+        return (mode ?? vimState?.mode ?? "Normal").replace(
+          /(^\w)|(\s+\w)/g,
+          (segment) => segment.toUpperCase(),
+        );
+    }
+  };
+
+  const updateVimStatus = (
+    modeChange?: VimModeChange,
+    view: EditorView | null = editorViewRef.current,
+  ) => {
+    if (!vimMode) {
+      onVimStatusChange(null);
+      return;
+    }
+
+    if (!view) {
+      onVimStatusChange({ mode: "Normal", commandText: null });
+      return;
+    }
+
+    const cm = getVimEditorRef.current?.(view) ?? null;
+    const vimState = cm?.state.vim;
+    const commandText = vimState?.status?.trim() || null;
+    const mode = commandText?.startsWith(":")
+      ? "Command"
+      : commandText?.startsWith("/") || commandText?.startsWith("?")
+        ? "Search"
+        : formatVimMode(modeChange?.mode, modeChange?.subMode, vimState);
+    onVimStatusChange({ mode, commandText });
+  };
 
   useEffect(() => {
     let disposed = false;
 
     if (!vimMode) {
       setVimExtensions(DEFAULT_EXTENSIONS);
+      getVimEditorRef.current = null;
+      onVimStatusChange(null);
       return () => {
         disposed = true;
       };
     }
 
     void import("@replit/codemirror-vim")
-      .then(({ vim }) => {
+      .then(({ vim, getCM }) => {
         if (!disposed) {
+          getVimEditorRef.current = getCM as (
+            view: EditorView,
+          ) => VimLikeEditor | null;
           setVimExtensions([vim()]);
         }
       })
@@ -90,6 +252,41 @@ export const Editor: React.FC<Props> = ({
 
     return () => {
       disposed = true;
+    };
+  }, [vimMode]);
+
+  useEffect(() => {
+    const editorView = editorViewRef.current;
+    if (!vimMode || !editorView) {
+      return;
+    }
+
+    let disposeListener: (() => void) | undefined;
+    let retryTimer = 0;
+
+    const attachListener = () => {
+      const cm = getVimEditorRef.current?.(editorView) ?? null;
+      if (!cm) {
+        retryTimer = window.setTimeout(attachListener, 80);
+        return;
+      }
+
+      const handleModeChange = (event: VimModeChange) => {
+        updateVimStatus(event, editorView);
+      };
+
+      cm.on("vim-mode-change", handleModeChange);
+      updateVimStatus(undefined, editorView);
+      disposeListener = () => {
+        cm.off?.("vim-mode-change", handleModeChange);
+      };
+    };
+
+    attachListener();
+
+    return () => {
+      window.clearTimeout(retryTimer);
+      disposeListener?.();
     };
   }, [vimMode]);
 
@@ -305,10 +502,29 @@ export const Editor: React.FC<Props> = ({
           onCreateEditor={(view) => {
             editorViewRef.current = view;
             handleCursorChange(view.state.selection);
+            updateSearchStatus(view);
+            updateVimStatus(undefined, view);
           }}
           onUpdate={(viewUpdate) => {
             if (viewUpdate.selectionSet || viewUpdate.docChanged) {
               handleCursorChange(viewUpdate.state.selection);
+            }
+            if (
+              viewUpdate.docChanged ||
+              viewUpdate.selectionSet ||
+              viewUpdate.transactions.some((transaction) =>
+                transaction.effects.some((effect) => effect.is(setSearchQuery)),
+              )
+            ) {
+              updateSearchStatus(viewUpdate.view);
+            }
+            if (
+              vimMode &&
+              (viewUpdate.selectionSet ||
+                viewUpdate.docChanged ||
+                viewUpdate.focusChanged)
+            ) {
+              updateVimStatus(undefined, viewUpdate.view);
             }
           }}
         />

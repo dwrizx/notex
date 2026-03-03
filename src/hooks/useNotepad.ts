@@ -160,6 +160,28 @@ export function useNotepad() {
     });
   };
 
+  const reorderTabs = (fromId: string, toId: string) => {
+    if (fromId === toId) {
+      return;
+    }
+
+    startTransition(() => {
+      setTabs((prev) => {
+        const fromIndex = prev.findIndex((tab) => tab.id === fromId);
+        const toIndex = prev.findIndex((tab) => tab.id === toId);
+
+        if (fromIndex === -1 || toIndex === -1) {
+          return prev;
+        }
+
+        const next = [...prev];
+        const [movedTab] = next.splice(fromIndex, 1);
+        next.splice(toIndex, 0, movedTab);
+        return next;
+      });
+    });
+  };
+
   const openFileIntoNewTab = async (filePath: string) => {
     const existingTab = tabs.find((tab) => tab.filePath === filePath);
     if (existingTab) {
@@ -266,6 +288,7 @@ export function useNotepad() {
     updateActiveText,
     handleNewTab,
     closeTab,
+    reorderTabs,
     handleOpen,
     handleSave,
     handleSaveAs,

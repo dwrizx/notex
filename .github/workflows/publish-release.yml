@@ -1,0 +1,150 @@
+name: Publish Release
+
+on:
+  workflow_dispatch:
+    inputs:
+      release_version:
+        description: "Version to release, for example 0.2.0"
+        required: true
+        type: string
+      release_notes:
+        description: "Optional notes shown above the generated GitHub release notes"
+        required: false
+        type: string
+      draft:
+        description: "Create the GitHub release as a draft"
+        required: true
+        default: false
+        type: boolean
+      prerelease:
+        description: "Mark the GitHub release as a prerelease"
+        required: true
+        default: false
+        type: boolean
+
+permissions:
+  contents: write
+
+concurrency:
+  group: publish-release-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  publish-tauri:
+    runs-on: windows-latest
+    env:
+      RELEASE_VERSION: ${{ inputs.release_version }}
+      RELEASE_TAG: v${{ inputs.release_version }}
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: lts/*
+
+      - name: Set up Bun
+        uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+
+      - name: Install Rust stable
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Cache Rust build artifacts
+        uses: swatinem/rust-cache@v2
+        with:
+          workspaces: ./src-tauri -> target
+
+      - name: Validate manual release input
+        shell: bash
+        run: |
+          if [ "${{ github.ref_type }}" != "branch" ]; then
+            echo "Run this workflow from a branch."
+            exit 1
+          fi
+
+          if ! [[ "$RELEASE_VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+([.-][0-9A-Za-z.-]+)?(\+[0-9A-Za-z.-]+)?$ ]]; then
+            echo "release_version must be valid semver, for example 0.2.0 or 0.2.0-beta.1"
+            exit 1
+          fi
+
+          git fetch --tags --force
+
+          if git rev-parse "$RELEASE_TAG" >/dev/null 2>&1; then
+            echo "Tag $RELEASE_TAG already exists."
+            exit 1
+          fi
+
+      - name: Update release version in project files
+        shell: bash
+        run: |
+          node <<'EOF'
+          const fs = require("node:fs");
+
+          const version = process.env.RELEASE_VERSION;
+
+          const updateJsonVersion = (filePath) => {
+            const data = JSON.parse(fs.readFileSync(filePath, "utf8"));
+            data.version = version;
+            fs.writeFileSync(filePath, `${JSON.stringify(data, null, 2)}\n`);
+          };
+
+          updateJsonVersion("package.json");
+          updateJsonVersion("src-tauri/tauri.conf.json");
+
+          const cargoPath = "src-tauri/Cargo.toml";
+          const cargoToml = fs.readFileSync(cargoPath, "utf8");
+          const updatedCargoToml = cargoToml.replace(
+            /(\[package\][\s\S]*?\nversion = ")([^"]+)(")/,
+            `$1${version}$3`,
+          );
+
+          if (cargoToml === updatedCargoToml) {
+            throw new Error("Failed to update version in src-tauri/Cargo.toml");
+          }
+
+          fs.writeFileSync(cargoPath, updatedCargoToml);
+          EOF
+
+      - name: Install frontend dependencies
+        run: bun install --frozen-lockfile
+
+      - name: Run repository checks
+        run: bun run check
+
+      - name: Commit version bump
+        id: version_commit
+        shell: bash
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+
+          git add package.json src-tauri/Cargo.toml src-tauri/tauri.conf.json
+
+          if git diff --cached --quiet; then
+            echo "No version file changes to commit."
+          else
+            git commit -m "chore(release): $RELEASE_TAG"
+            git push origin HEAD:${{ github.ref_name }}
+          fi
+
+          echo "release_commitish=$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
+
+      - name: Publish GitHub release
+        uses: tauri-apps/tauri-action@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          tagName: ${{ env.RELEASE_TAG }}
+          releaseName: Notex v${{ env.RELEASE_VERSION }}
+          releaseBody: ${{ inputs.release_notes }}
+          generateReleaseNotes: true
+          releaseDraft: ${{ inputs.draft }}
+          prerelease: ${{ inputs.prerelease }}
+          releaseCommitish: ${{ steps.version_commit.outputs.release_commitish }}
+          tauriScript: bun tauri

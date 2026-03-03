@@ -25,6 +25,17 @@ type MenuActionPayload = {
   filePath?: string | null;
 };
 
+type SearchStatus = {
+  query: string;
+  current: number;
+  total: number;
+};
+
+type VimStatus = {
+  mode: string;
+  commandText: string | null;
+};
+
 function App() {
   const notepad = useNotepad();
   const settings = useSettings();
@@ -45,6 +56,12 @@ function App() {
       | "goto-line";
     nonce: number;
   } | null>(null);
+  const [searchStatus, setSearchStatus] = useState<SearchStatus>({
+    query: "",
+    current: 0,
+    total: 0,
+  });
+  const [vimStatus, setVimStatus] = useState<VimStatus | null>(null);
 
   const handleFileDrop = useEffectEvent((paths: string[]) => {
     const firstPath = paths[0];
@@ -225,6 +242,7 @@ function App() {
           activeTabId={notepad.activeTabId}
           onSelect={notepad.setActiveTabId}
           onClose={notepad.closeTab}
+          onReorder={notepad.reorderTabs}
         />
         <Suspense
           fallback={<div className="editor-loading">Loading editor…</div>}
@@ -239,6 +257,8 @@ function App() {
             fileName={notepad.activeTab.name}
             command={editorCommand}
             onCursorChange={setCursorState}
+            onSearchStatusChange={setSearchStatus}
+            onVimStatusChange={setVimStatus}
           />
         </Suspense>
       </div>
@@ -255,6 +275,8 @@ function App() {
         fontSize={settings.fontSize}
         defaultFontSize={settings.defaultFontSize}
         autosave={settings.autosave}
+        searchStatus={searchStatus}
+        vimStatus={vimStatus}
       />
     </div>
   );

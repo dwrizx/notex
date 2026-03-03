@@ -130,7 +130,9 @@ textarea {
   transition:
     background-color 120ms ease,
     border-color 120ms ease,
-    color 120ms ease;
+    color 120ms ease,
+    transform 120ms ease,
+    opacity 120ms ease;
 }
 
 .tab.active {
@@ -143,6 +145,16 @@ textarea {
 .tab:hover:not(.active) {
   color: var(--text);
   background: color-mix(in srgb, var(--surface-raised) 84%, transparent);
+}
+
+.tab.dragging {
+  opacity: 0.45;
+}
+
+.tab.drop-target {
+  border-color: color-mix(in srgb, var(--accent) 55%, var(--border));
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--accent) 35%, transparent);
+  transform: translateY(-1px);
 }
 
 .tab-title {
@@ -264,17 +276,22 @@ textarea {
 }
 
 .cm-search > input[name="replace"] {
-  grid-column: 1 / span 4;
+  grid-column: 1 / span 3;
   grid-row: 2;
   min-width: 0;
 }
 
 .cm-search > button[name="replace"] {
   grid-row: 2;
+  background: color-mix(in srgb, var(--accent) 18%, var(--surface-raised));
+  border-color: color-mix(in srgb, var(--accent) 30%, var(--border));
+  color: var(--text);
 }
 
 .cm-search > button[name="replaceAll"] {
   grid-row: 2;
+  background: color-mix(in srgb, var(--accent) 10%, var(--surface-raised));
+  border-color: color-mix(in srgb, var(--accent) 24%, var(--border));
 }
 
 .cm-search > button[name="close"] {
@@ -303,6 +320,11 @@ textarea {
   color: var(--text);
   border: 1px solid var(--border);
   border-radius: 6px;
+}
+
+.cm-search button:hover {
+  border-color: color-mix(in srgb, var(--accent) 32%, var(--border));
+  background: color-mix(in srgb, var(--surface-raised) 85%, var(--accent-soft));
 }
 
 .cm-search label {
@@ -386,6 +408,14 @@ textarea {
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+}
+
+.status-pill {
+  padding: 2px 8px;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--surface-raised) 80%, transparent);
+  color: var(--text);
 }
 
 @media (max-width: 860px) {

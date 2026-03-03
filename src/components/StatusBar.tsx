@@ -1,6 +1,17 @@
 import React from "react";
 import { ThemeMode } from "../hooks/useSettings";
 
+type SearchStatus = {
+  query: string;
+  current: number;
+  total: number;
+};
+
+type VimStatus = {
+  mode: string;
+  commandText: string | null;
+};
+
 interface Props {
   filePath: string | null;
   isDirty: boolean;
@@ -14,6 +25,8 @@ interface Props {
   fontSize: number;
   defaultFontSize: number;
   autosave: boolean;
+  searchStatus: SearchStatus;
+  vimStatus: VimStatus | null;
 }
 
 export const StatusBar: React.FC<Props> = ({
@@ -29,6 +42,8 @@ export const StatusBar: React.FC<Props> = ({
   fontSize,
   defaultFontSize,
   autosave,
+  searchStatus,
+  vimStatus,
 }) => {
   const zoomPercent = Math.round((fontSize / defaultFontSize) * 100);
 
@@ -45,6 +60,17 @@ export const StatusBar: React.FC<Props> = ({
         <span className="status-item">
           {selectionLength > 0 ? `${selectionLength} selected` : "No selection"}
         </span>
+        {searchStatus.query ? (
+          <span className="status-item status-pill">
+            Find {searchStatus.current}/{searchStatus.total}
+          </span>
+        ) : null}
+        {vimStatus ? (
+          <span className="status-item status-pill">
+            Vim {vimStatus.mode}
+            {vimStatus.commandText ? ` ${vimStatus.commandText}` : ""}
+          </span>
+        ) : null}
         <span className="status-item">{lineCount} lines</span>
         <span className="status-item">{charCount} chars</span>
         <span className="status-item">{wordWrap ? "Wrap On" : "Wrap Off"}</span>
