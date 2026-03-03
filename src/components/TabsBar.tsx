@@ -22,15 +22,18 @@ export const TabsBar: React.FC<Props> = ({
           className={`tab ${tab.id === activeTabId ? "active" : ""}`}
           onClick={() => onSelect(tab.id)}
         >
-          <span className="tab-title">
-            {tab.name} {tab.isDirty ? "*" : ""}
-          </span>
+          <span className="tab-title">{tab.name}</span>
+          {tab.isDirty ? (
+            <span className="tab-dirty" aria-hidden="true" />
+          ) : null}
           <button
+            type="button"
             className="tab-close"
             onClick={(e) => {
               e.stopPropagation();
               onClose(tab.id);
             }}
+            aria-label={`Close ${tab.name}`}
           >
             ×
           </button>
